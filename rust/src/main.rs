@@ -1,4 +1,5 @@
 mod ble;
+mod mqtt;
 mod protocol;
 mod server;
 
@@ -31,6 +32,18 @@ enum Commands {
 
         #[arg(long, default_value_t = 8050, help = "HTTP port to bind")]
         port: u16,
+
+        #[arg(long, help = "MQTT broker hostname or IP for Home Assistant (e.g. 192.168.99.4)")]
+        mqtt_host: Option<String>,
+
+        #[arg(long, default_value_t = 1883, help = "MQTT broker port")]
+        mqtt_port: u16,
+
+        #[arg(long, help = "MQTT broker username")]
+        mqtt_user: Option<String>,
+
+        #[arg(long, help = "MQTT broker password")]
+        mqtt_pass: Option<String>,
     },
 
     #[command(about = "Read current thermostat temperature, setpoint, mode, and metadata")]
@@ -84,16 +97,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = Arc::new(ThermostatManager::new(cli.mac));
 
     match cli.command {
-        Commands::Serve { host, port } => {
-            let app = server::create_router(manager.clone());
-            let addr = format!("{}:{}", host, port);
+        Commands::Serve {
+            host,
+            port,
+            mqtt_host,
+            mqtt_port,
+            mqtt_user,
+            mqtt_pass,
+        } => {
             println!("======================================================================");
             println!(" BreezyMach Web Service (Rust Native Single Binary)");
             println!(" Listening on: http://{}:{}", host, port);
             let mac_display = manager.get_target_mac().await.unwrap_or_else(|_| "Auto-discover".to_string());
             println!(" Target MAC : {}", mac_display);
+            if let Some(ref m_host) = mqtt_host {
+                println!(" MQTT Broker: {}:{}", m_host, mqtt_port);
+            }
             println!("======================================================================");
 
+            if let Some(m_host) = mqtt_host {
+                match mqtt::MqttService::start(
+                    m_host,
+                    mqtt_port,
+                    mqtt_user,
+                    mqtt_pass,
+                    manager.clone(),
+                )
+                .await
+                {
+                    Ok(_) => println!("[MQTT] Service initialized and publishing HA auto-discovery."),
+                    Err(e) => eprintln!("[MQTT ERROR] Failed to start MQTT service: {}", e),
+                }
+            }
+
+            let app = server::create_router(manager.clone());
+            let addr = format!("{}:{}", host, port);
             let listener = tokio::net::TcpListener::bind(&addr).await?;
             axum::serve(listener, app).await?;
         }

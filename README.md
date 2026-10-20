@@ -151,6 +151,80 @@ BreezyMach includes a standalone command-line tool for terminal automation and s
 
 ---
 
+## 🏡 Home Assistant Integration
+
+BreezyMach integrates seamlessly with Home Assistant via two methods:
+
+### Option 1: Native MQTT Auto-Discovery (Recommended — Zero HA YAML Required)
+
+When started with `--mqtt-host`, BreezyMach connects to your MQTT broker (e.g. Mosquitto on Home Assistant / OpenMediaVault) and automatically publishes Home Assistant MQTT Discovery topics:
+
+```bash
+# Start BreezyMach with MQTT discovery enabled
+./breezy-mach serve --port 8050 --mqtt-host 192.168.99.4
+```
+
+#### What Home Assistant Discovers Automatically:
+* **`climate.rv_thermostat`**: Native interactive thermostat dial with target setpoint, current room temperature, HVAC modes (`off`, `cool`, `fan_only`), and fan modes (`auto_high`, `auto_low`, `high`, `low`).
+* **`sensor.rv_room_temperature`**: Ambient temperature sensor with history graphs.
+* **`breezy_mach/availability`**: Online/offline device state tracking.
+
+---
+
+### Option 3: Direct Home Assistant REST Template
+
+If you do not use MQTT, you can connect Home Assistant directly to BreezyMach's REST API (`http://192.168.99.10:8050`) by adding the following to your Home Assistant `configuration.yaml`:
+
+```yaml
+# In Home Assistant configuration.yaml:
+rest_command:
+  rv_thermostat_set:
+    url: "http://192.168.99.10:8050/api/set"
+    method: POST
+    headers:
+      content-type: "application/json"
+    payload: '{"temp": {{ temp | default("null") }}, "mode": "{{ mode | default("") }}"}'
+
+sensor:
+  - platform: rest
+    name: "RV Thermostat Status"
+    resource: "http://192.168.99.10:8050/api/status"
+    json_attributes_path: "$.state"
+    json_attributes:
+      - temperature
+      - set_point
+      - current_mode
+      - zone_name
+    value_template: "{{ value_json.state.current_mode }}"
+    scan_interval: 15
+
+climate:
+  - platform: template
+    climates:
+      rv_thermostat:
+        friendly_name: "RV Thermostat"
+        current_temperature_template: "{{ states.sensor.rv_thermostat_status.attributes.temperature }}"
+        target_temperature_template: "{{ states.sensor.rv_thermostat_status.attributes.set_point }}"
+        hvac_mode_template: >
+          {% set m = states.sensor.rv_thermostat_status.attributes.current_mode %}
+          {% if 'COOL' in m %}cool{% elif 'FAN' in m %}fan_only{% else %}off{% endif %}
+        hvac_modes:
+          - "off"
+          - "cool"
+          - "fan_only"
+        set_temperature:
+          service: rest_command.rv_thermostat_set
+          data:
+            temp: "{{ temperature }}"
+        set_hvac_mode:
+          service: rest_command.rv_thermostat_set
+          data:
+            mode: >
+              {% if hvac_mode == 'cool' %}COOL AUTO LOW{% elif hvac_mode == 'fan_only' %}FAN LOW{% else %}OFF{% endif %}
+```
+
+---
+
 ## 🔌 REST API Reference
 
 | Method | Endpoint | Description |

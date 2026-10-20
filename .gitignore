@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local user configs & device credentials
+.config/
+*.json
+!example_*.json
+
+# Decompiled binary artifacts & disassembly references
+apk/
+extracted/
+disassembled_*.txt
+disassemble_*.py
+
+# Environment & IDE
+.venv/
+venv/
+ENV/
+.idea/
+.vscode/
+
+# Logs
+*.log

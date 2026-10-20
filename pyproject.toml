@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "breezy-mach"
+version = "1.0.0"
+authors = [
+  { name="ChiefTechnicalWizard", email="chieftechnicalwizard@gmail.com" },
+]
+description = "Compatible Engineered Bluetooth controller and local web dashboard for Coleman-Mach RV thermostats"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Home Automation",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+dependencies = [
+    "bleak>=0.21.0",
+    "dbus-fast>=2.0.0",
+    "aiohttp>=3.9.0",
+]
+
+[project.scripts]
+breezy-mach = "web_app:main"
+breezy-mach-cli = "coleman_mach_cli:main"

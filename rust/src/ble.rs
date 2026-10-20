@@ -26,7 +26,7 @@ impl Default for Config {
         Self {
             mac_address: String::new(),
             zone_name: String::new(),
-            unit_id: "968900".to_string(),
+            unit_id: String::new(),
             updated_at: String::new(),
         }
     }
@@ -80,7 +80,7 @@ impl ThermostatManager {
         let cfg = Config {
             mac_address: mac.to_string(),
             zone_name: zone.to_string(),
-            unit_id: if unit_id.is_empty() { "968900".to_string() } else { unit_id.to_string() },
+            unit_id: unit_id.to_string(),
             updated_at: now,
         };
         if let Ok(data) = serde_json::to_string_pretty(&cfg) {
@@ -316,12 +316,20 @@ impl ThermostatManager {
     pub async fn run_pairing_flow(&self, pin_opt: Option<String>, timeout_secs: u64) -> Result<ThermostatState, String> {
         let pin_str = pin_opt
             .filter(|p| !p.trim().is_empty())
-            .or_else(|| Self::load_config().map(|c| c.unit_id))
-            .unwrap_or_else(|| "968900".to_string())
+            .or_else(|| Self::load_config().map(|c| c.unit_id).filter(|u| !u.trim().is_empty()))
+            .unwrap_or_default()
             .replace(" ", "")
             .trim()
             .to_string();
-        let passkey_num: u32 = pin_str.parse().unwrap_or(968900);
+
+        if pin_str.is_empty() || pin_str.len() != 6 || pin_str.parse::<u32>().is_err() {
+            let err = "A 6-digit numeric PIN is required for pairing. Enter the PIN flashing on your thermostat LCD (e.g. 123456).".to_string();
+            *self.pairing_status.lock().await = "failed".to_string();
+            *self.pairing_message.lock().await = err.clone();
+            *self.pairing_active.lock().await = false;
+            return Err(err);
+        }
+        let passkey_num: u32 = pin_str.parse().unwrap();
 
         *self.pairing_active.lock().await = true;
         *self.pairing_status.lock().await = "scanning".to_string();

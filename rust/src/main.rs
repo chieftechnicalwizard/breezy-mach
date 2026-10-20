@@ -62,7 +62,7 @@ enum Commands {
 
     #[command(about = "Pair with thermostat and enroll in BLE Link-Layer Whitelist")]
     Pair {
-        #[arg(long, help = "6-digit thermostat PIN / Unit ID (default: 968900)")]
+        #[arg(long, help = "6-digit thermostat PIN / Unit ID flashing on thermostat LCD (e.g. 123456)")]
         pin: Option<String>,
     },
 
@@ -155,7 +155,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(" 1. Press and hold BOTH the UP and DOWN arrow buttons on the");
             println!("    thermostat for 5 seconds.");
             println!(" 2. Watching BLE advertisements for Mfg 0xFFFF = 0xAA...");
-            println!(" 3. Auto-Passkey Agent active (PIN: {}).", pin.as_deref().unwrap_or("968900"));
+            let pin_display = pin.as_deref().unwrap_or("<flashing 6-digit PIN>");
+            println!(" 3. Auto-Passkey Agent active (PIN: {}).", pin_display);
             println!("======================================================================");
 
             match manager.run_pairing_flow(pin, 60).await {

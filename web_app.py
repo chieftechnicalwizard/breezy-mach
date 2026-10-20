@@ -470,7 +470,7 @@ HTML_DASHBOARD = """<!DOCTYPE html>
       </div>
       <div>
         <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Thermostat Passkey / PIN (6 digits)</label>
-        <input type="text" id="pairPinInput" class="pin-input" maxlength="6" value="968900" placeholder="968900">
+        <input type="text" id="pairPinInput" class="pin-input" maxlength="6" value="" placeholder="e.g. 123456">
       </div>
       <div class="pair-progress" id="pairProgressBox">
         Ready to pair. Follow the 5-second button press step above first.
@@ -660,6 +660,12 @@ HTML_DASHBOARD = """<!DOCTYPE html>
     el('btnStartPairing').onclick = async () => {
       const pin = el('pairPinInput').value.trim();
       const progressBox = el('pairProgressBox');
+
+      if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+        progressBox.textContent = 'Please enter the 6-digit PIN flashing on your thermostat LCD (e.g. 123456).';
+        return;
+      }
+
       el('btnStartPairing').disabled = true;
       progressBox.innerHTML = '<span class="spinner"></span> Starting pairing listener...';
 

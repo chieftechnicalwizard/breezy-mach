@@ -366,7 +366,7 @@ def load_saved_mac() -> Optional[str]:
 
 
 def load_saved_pin() -> str:
-    return load_saved_config().get("unit_id") or "968900"
+    return load_saved_config().get("unit_id") or ""
 
 
 def save_mac(mac_address: str, zone_name: str = "", unit_id: str = "") -> None:
@@ -375,7 +375,7 @@ def save_mac(mac_address: str, zone_name: str = "", unit_id: str = "") -> None:
     payload = {
         "mac_address": mac_address,
         "zone_name": zone_name or existing.get("zone_name", ""),
-        "unit_id": unit_id or existing.get("unit_id", "968900"),
+        "unit_id": unit_id or existing.get("unit_id", ""),
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     CONFIG_PATH.write_text(json.dumps(payload, indent=2) + "\n")
@@ -385,14 +385,14 @@ async def register_bluez_pin_agent(pin_str: Optional[str] = None):
     """
     Registers a BlueZ org.bluez.Agent1 on the system D-Bus to automatically answer
     BLE SMP RequestPasskey / RequestPinCode with the 6-digit thermostat Unit ID / PIN
-    (e.g. '968900' flashing as '96 89 00' on the thermostat display).
+    (e.g. flashing as 6 digits on the thermostat display).
     """
     from dbus_fast.aio import MessageBus
     from dbus_fast.service import ServiceInterface, method
     from dbus_fast import BusType
 
     clean_pin = (pin_str or load_saved_pin()).replace(" ", "").strip()
-    passkey_int = int(clean_pin) if clean_pin.isdigit() else 968900
+    passkey_int = int(clean_pin) if clean_pin.isdigit() else 0
 
     class AutoPinAgent(ServiceInterface):
         def __init__(self):
@@ -835,7 +835,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Coleman-Mach / Airxcel RV Climate BLE Thermostat Monitor & Controller"
     )
     parser.add_argument("--mac", help="Thermostat Bluetooth MAC address (default: auto-discover or saved)")
-    parser.add_argument("--pin", help="6-digit Bluetooth SMP passkey / Unit ID (default: 968900)")
+    parser.add_argument("--pin", help="6-digit Bluetooth SMP passkey / Unit ID flashing on thermostat display")
     parser.add_argument("--timeout", type=float, default=10.0, help="BLE scan/connect timeout in seconds (default: 10)")
     parser.add_argument("--json", action="store_true", help="Output JSON")
 

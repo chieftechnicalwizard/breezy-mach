@@ -39,7 +39,7 @@ BreezyMach communicates directly with the physical thermostat hardware using sta
    - In normal operation, the thermostat advertises `Mfg 0xFFFF: 0x00` and enforces a hardware whitelist filter policy.
    - Holding **UP + DOWN** on the physical thermostat for 5 seconds switches the advertisement to `0xAA` (`PAIRING_OPEN`), opening the whitelist for enrollment.
 3. **Automated BlueZ Passkey Agent**:
-   - When entering pairing mode, the thermostat LCD flashes its 6-digit Unit ID (e.g. `96 89 00`).
+   - When entering pairing mode, the thermostat LCD flashes its unique 6-digit Unit ID (flashing 2 digits at a time).
    - BreezyMach registers a BlueZ D-Bus `org.bluez.Agent1` that automatically answers Bluetooth SMP pairing passkey requests, seamlessly completing bonding and whitelist enrollment.
 4. **Persistent Low-Latency Connection**:
    - Direct MAC addressing and persistent GATT sessions eliminate BLE discovery scan delays, bringing command round-trip times down to ~0.5 seconds.
@@ -92,7 +92,7 @@ cargo build --release
 ./breezy-mach scan
 
 # Pair a new thermostat with flashing PIN
-./breezy-mach pair --pin 968900
+./breezy-mach pair --pin 123456
 
 # Continuous real-time monitor
 ./breezy-mach monitor --interval 5
@@ -158,7 +158,7 @@ BreezyMach includes a standalone command-line tool for terminal automation and s
 | `GET` | `/api/status` | Read current status (`?fresh=true` forces fresh BLE read) |
 | `POST` | `/api/set` | Set target setpoint, mode, or zone (e.g. `{"temp": 72, "mode": "COOL AUTO LOW"}`) |
 | `GET` | `/api/scan` | Scan for nearby Coleman-Mach BLE units |
-| `POST` | `/api/pair` | Initiate background pairing sequence (`{"pin": "968900", "wait": 60}`) |
+| `POST` | `/api/pair` | Initiate background pairing sequence (`{"pin": "123456", "wait": 60}`) |
 | `GET` | `/api/pair/status` | Get active pairing progress |
 | `GET` | `/api/config` | Read saved configuration |
 

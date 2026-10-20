@@ -129,13 +129,15 @@ async fn handle_api_scan(State(state): State<AppState>) -> impl IntoResponse {
 #[derive(Deserialize)]
 struct PairRequest {
     pin: Option<String>,
+    #[allow(dead_code)]
+    wait: Option<u64>,
 }
 
 async fn handle_api_pair(
     State(state): State<AppState>,
     Json(payload): Json<PairRequest>,
 ) -> impl IntoResponse {
-    let (started, msg) = state.manager.start_pairing(payload.pin.as_deref()).await;
+    let (started, msg) = state.manager.start_pairing(payload.pin).await;
     Json(serde_json::json!({
         "success": started,
         "message": msg,

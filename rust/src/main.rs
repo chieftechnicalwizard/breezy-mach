@@ -149,9 +149,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Pair { pin } => {
-            println!("Initiating pairing sequence with pin: {:?}", pin);
-            let (started, msg) = manager.start_pairing(pin.as_deref()).await;
-            println!("{}: {}", if started { "STARTED" } else { "FAILED" }, msg);
+            println!("======================================================================");
+            println!(" Coleman-Mach Thermostat Pairing / Whitelist Enrollment");
+            println!("======================================================================");
+            println!(" 1. Press and hold BOTH the UP and DOWN arrow buttons on the");
+            println!("    thermostat for 5 seconds.");
+            println!(" 2. Watching BLE advertisements for Mfg 0xFFFF = 0xAA...");
+            println!(" 3. Auto-Passkey Agent active (PIN: {}).", pin.as_deref().unwrap_or("968900"));
+            println!("======================================================================");
+
+            match manager.run_pairing_flow(pin, 60).await {
+                Ok(state) => {
+                    println!("\n[SUCCESS] Thermostat paired and enrolled in whitelist!");
+                    println!("  Address : {}", state.mac_address);
+                    println!("  Zone    : {}", state.zone_name);
+                    println!("  Unit ID : {}", state.unit_id);
+                    println!("  Setpoint: {}{}", state.set_point.unwrap_or(0), state.temp_unit());
+                    println!("  Mode    : {}", state.current_mode);
+                }
+                Err(e) => {
+                    eprintln!("\n[ERROR] Pairing failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
         }
 
         Commands::Monitor { interval } => {

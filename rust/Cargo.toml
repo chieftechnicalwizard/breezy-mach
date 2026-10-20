@@ -1,0 +1,21 @@
+[package]
+name = "breezy-mach"
+version = "1.0.0"
+edition = "2021"
+authors = ["ChiefTechnicalWizard <chieftechnicalwizard@gmail.com>"]
+description = "Compatible Engineered Bluetooth controller and local web dashboard for Coleman-Mach RV thermostats"
+license = "MIT"
+
+[dependencies]
+libdbus-sys = { version = "0.2", features = ["vendored"] }
+tokio = { version = "1", features = ["full"] }
+bluer = { version = "0.17", features = ["bluetoothd"] }
+axum = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower-http = { version = "0.5", features = ["cors"] }
+uuid = "1"
+futures = "0.3"

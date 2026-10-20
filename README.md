@@ -1,12 +1,13 @@
 # BreezyMach 🚐❄️
 **Compatible Engineered Bluetooth controller and local web dashboard for Coleman-Mach RV thermostats**
 
+[![Rust 1.80+](https://img.shields.io/badge/rust-1.80+-orange.svg)](https://www.rust-lang.org/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux%20%28BlueZ%29-orange.svg)](#)
 [![BLE GATT](https://img.shields.io/badge/Bluetooth-BLE%20GATT-informational.svg)](#)
 
-BreezyMach is a lightweight, local-only Linux tool and web dashboard for monitoring and controlling **Coleman-Mach / Airxcel Bluetooth RV Thermostats**. It runs 100% offline inside your RV without any cloud accounts, proprietary gateways, or internet access.
+BreezyMach is a lightweight, local-only Linux tool and web dashboard for monitoring and controlling **Coleman-Mach / Airxcel Bluetooth RV Thermostats**. It runs 100% offline inside your RV without any cloud accounts, proprietary gateways, or internet access. Available both as a high-performance **native Rust single binary** and as a **Python service**.
 
 <p align="center">
   <img src="dashboard_screenshot.png" alt="BreezyMach Web Dashboard" width="460" style="border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);" />
@@ -61,7 +62,45 @@ BreezyMach communicates directly with the physical thermostat hardware using sta
 
 ---
 
-## 🚀 Quickstart
+## 🦀 Rust Native Binary (Zero Dependencies)
+
+BreezyMach includes a high-performance **native Rust** implementation (`breezy-mach`). The complete HTML/CSS/JS web dashboard is compiled directly into a single standalone binary (~7.5 MB) with sub-second startup, low memory footprint (~10-15 MB RAM vs ~60 MB in Python), and direct BlueZ D-Bus integration via Tokio and Bluer.
+
+### Building from Source
+```bash
+cd rust
+cargo build --release
+# The compiled standalone binary is in rust/target/release/breezy-mach
+```
+
+### Running the Rust Web Server
+```bash
+./breezy-mach serve --port 8050
+```
+
+### Rust CLI Commands
+```bash
+# Get instant status (human-readable or JSON)
+./breezy-mach status
+./breezy-mach status --json
+
+# Set temperature and mode
+./breezy-mach set --temp 72 --mode "COOL AUTO LOW"
+./breezy-mach set --mode OFF
+
+# Scan for Coleman-Mach units
+./breezy-mach scan
+
+# Pair a new thermostat with flashing PIN
+./breezy-mach pair --pin 968900
+
+# Continuous real-time monitor
+./breezy-mach monitor --interval 5
+```
+
+---
+
+## 🐍 Python Quickstart
 
 ### Prerequisites
 - Linux computer with Bluetooth 4.0+ (Raspberry Pi, Linux laptop, RV home server).

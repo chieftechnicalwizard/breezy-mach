@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Coleman-Mach RV Thermostat Controller</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --accent-cool: #06b6d4;
+      --accent-heat: #f97316;
+      --accent-fan: #a855f7;
+      --accent-off: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 18px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 16px; display: flex; justify-content: center; min-height: 100vh; }
+    .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 16px; }
+
+    header { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; }
+    .title-group h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+    .title-group p { font-size: 0.8rem; color: var(--text-muted); }
+    
+    .badge { background: #1e293b; border: 1px solid var(--card-border); color: #cbd5e1; font-size: 0.78rem; padding: 5px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+    .badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+    .badge-dot.syncing { background: var(--warning); animation: pulse 1s infinite alternate; }
+    .badge-dot.error { background: var(--danger); }
+    @keyframes pulse { 0% { opacity: 0.4; } 100% { opacity: 1; transform: scale(1.15); } }
+
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); position: relative; }
+    
+    /* Dial & Setpoint */
+    .dial-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+    .zone-tag { font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); font-weight: 600; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.25); padding: 4px 14px; border-radius: 20px; }
+    
+    .room-temp-container { margin: 4px 0; }
+    .room-temp-label { font-size: 0.82rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .room-temp { font-size: 4.2rem; font-weight: 800; line-height: 1; color: #ffffff; text-shadow: 0 4px 16px rgba(0,0,0,0.6); }
+    .room-temp sup { font-size: 2rem; font-weight: 600; vertical-align: super; }
+
+    .setpoint-box { display: flex; align-items: center; justify-content: center; gap: 24px; width: 100%; margin-top: 6px; }
+    .btn-circle { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--card-border); background: #273549; color: var(--text); font-size: 2rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s ease; user-select: none; }
+    .btn-circle:active { transform: scale(0.9); background: var(--primary); color: #0b1120; }
+    .setpoint-val-group { text-align: center; min-width: 110px; }
+    .setpoint-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .setpoint-number { font-size: 2.4rem; font-weight: 700; color: var(--primary); line-height: 1.1; transition: color 0.15s ease; }
+    .setpoint-number.pending { color: var(--warning); }
+
+    /* Modes Grid */
+    .section-title { font-size: 0.88rem; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+    .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .btn-mode { padding: 14px 10px; border-radius: 12px; border: 1px solid var(--card-border); background: #243042; color: var(--text); font-size: 0.88rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; }
+    .btn-mode:hover { border-color: var(--primary); background: #2d3d54; }
+    .btn-mode:active { transform: scale(0.96); }
+    .btn-mode.active { background: var(--primary); color: #0b1120; border-color: var(--primary); box-shadow: 0 0 18px rgba(56, 189, 248, 0.45); }
+    .btn-mode.active.off { background: var(--accent-off); color: #ffffff; border-color: var(--accent-off); box-shadow: none; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; }
+    .btn { flex: 1; padding: 12px 16px; border-radius: 12px; border: none; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: all 0.12s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary { background: var(--primary); color: #0b1120; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #334155; color: #f1f5f9; }
+    .btn-secondary:hover { background: #475569; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Diagnostics Info */
+    .info-list { display: flex; flex-direction: column; gap: 8px; font-size: 0.82rem; }
+    .info-row { display: flex; justify-content: space-between; color: var(--text-muted); }
+    .info-val { color: var(--text); font-weight: 500; font-family: monospace; font-size: 0.85rem; }
+
+    /* Pairing Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 100; backdrop-filter: blur(4px); }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); width: 100%; max-width: 440px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .modal h2 { font-size: 1.2rem; }
+    .step-box { background: #131c2e; border: 1px solid var(--card-border); border-radius: 10px; padding: 12px; font-size: 0.85rem; line-height: 1.45; }
+    .step-box ol { margin-left: 20px; }
+    .step-box li { margin-bottom: 6px; }
+    .step-box strong { color: var(--primary); }
+    .pin-input { width: 100%; padding: 10px 14px; background: #0b1120; border: 1px solid var(--card-border); border-radius: 8px; color: #fff; font-size: 1.1rem; letter-spacing: 2px; text-align: center; }
+    .pair-progress { font-size: 0.85rem; padding: 10px; border-radius: 8px; background: #0b1120; border: 1px solid #334155; min-height: 48px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--primary); }
+
+    /* Spinner */
+    .spinner { border: 2px solid rgba(255,255,255,0.2); border-left-color: var(--primary); border-radius: 50%; width: 14px; height: 14px; animation: spin 0.8s linear infinite; display: inline-block; margin-right: 4px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title-group">
+        <h1>Coleman-Mach Thermostat</h1>
+        <p>RV Climate Bluetooth Web Controller</p>
+      </div>
+      <div class="badge" id="statusBadge">
+        <span class="badge-dot" id="statusDot"></span>
+        <span id="statusText">Connected</span>
+      </div>
+    </header>
+
+    <!-- Main Thermostat Card -->
+    <div class="card dial-card">
+      <div class="zone-tag" id="zoneTag">Zone: Main</div>
+      
+      <div class="room-temp-container">
+        <div class="room-temp-label">Current Room Temp</div>
+        <div class="room-temp" id="roomTemp">--<sup>°F</sup></div>
+      </div>
+
+      <!-- Setpoint Controller with instant optimistic feedback -->
+      <div class="setpoint-box">
+        <button class="btn-circle" id="btnTempDown" aria-label="Decrease Target Temp">−</button>
+        <div class="setpoint-val-group">
+          <div class="setpoint-label">Target Setpoint</div>
+          <div class="setpoint-number" id="targetTemp">--°F</div>
+        </div>
+        <button class="btn-circle" id="btnTempUp" aria-label="Increase Target Temp">+</button>
+      </div>
+    </div>
+
+    <!-- Operating Mode Selection -->
+    <div class="card">
+      <div class="section-title">
+        <span>Operating Mode</span>
+        <span id="activeModeLabel" style="color: var(--primary); font-size: 0.82rem;">--</span>
+      </div>
+      <div class="mode-grid" id="modeGrid">
+        <!-- Rendered dynamically -->
+        <button class="btn-mode" data-mode="OFF">OFF</button>
+        <button class="btn-mode" data-mode="FAN LOW">FAN LOW</button>
+        <button class="btn-mode" data-mode="FAN HIGH">FAN HIGH</button>
+        <button class="btn-mode" data-mode="COOL LOW">COOL LOW</button>
+        <button class="btn-mode" data-mode="COOL HIGH">COOL HIGH</button>
+        <button class="btn-mode" data-mode="COOL AUTO LOW">COOL AUTO LOW</button>
+        <button class="btn-mode" data-mode="COOL AUTO HIGH">COOL AUTO HIGH</button>
+      </div>
+    </div>
+
+    <!-- Actions & Pairing -->
+    <div class="card">
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btnRefresh">
+          <span id="refreshIcon">🔄</span> Refresh Now
+        </button>
+        <button class="btn btn-secondary" id="btnOpenPairModal">
+          🔗 Pair New Unit
+        </button>
+      </div>
+    </div>
+
+    <!-- Device Metadata Info -->
+    <div class="card">
+      <div class="section-title">Device Diagnostics</div>
+      <div class="info-list">
+        <div class="info-row"><span>Bluetooth MAC</span><span class="info-val" id="macVal">--:--:--:--:--:--</span></div>
+        <div class="info-row"><span>Unit ID / Passkey</span><span class="info-val" id="idVal">------</span></div>
+        <div class="info-row"><span>Signal (RSSI)</span><span class="info-val" id="rssiVal">-- dBm</span></div>
+        <div class="info-row"><span>Last Read</span><span class="info-val" id="lastUpdatedVal">Never</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pairing Modal -->
+  <div class="modal-overlay" id="pairModal">
+    <div class="modal">
+      <h2>Pair New Coleman-Mach Unit</h2>
+      <div class="step-box">
+        <ol>
+          <li>Stand near the Coleman-Mach physical thermostat.</li>
+          <li>Press & hold <strong>BOTH the UP and DOWN</strong> buttons for <strong>5 seconds</strong>.</li>
+          <li>The thermostat screen will flash its 6-digit Unit ID (e.g. <code>96 89 00</code>).</li>
+          <li>Enter the 6-digit PIN below and click <strong>Start Pairing</strong>.</li>
+        </ol>
+      </div>
+      <div>
+        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Thermostat Passkey / PIN (6 digits)</label>
+        <input type="text" id="pairPinInput" class="pin-input" maxlength="6" value="968900" placeholder="968900">
+      </div>
+      <div class="pair-progress" id="pairProgressBox">
+        Ready to pair. Follow the 5-second button press step above first.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btnClosePairModal">Cancel</button>
+        <button class="btn btn-primary" id="btnStartPairing">Start Pairing</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentState = null;
+    let pendingTemp = null;
+    let tempDebounceTimer = null;
+    let activeRequestCount = 0;
+
+    const el = (id) => document.getElementById(id);
+
+    function setSyncing(syncing, customMsg = null) {
+      const dot = el('statusDot');
+      const text = el('statusText');
+      if (syncing) {
+        dot.className = 'badge-dot syncing';
+        text.textContent = customMsg || 'Syncing...';
+      } else if (activeRequestCount <= 0) {
+        dot.className = 'badge-dot';
+        text.textContent = 'Connected';
+      }
+    }
+
+    function showError(msg) {
+      el('statusDot').className = 'badge-dot error';
+      el('statusText').textContent = 'Sync Error';
+      console.warn('Thermostat error:', msg);
+    }
+
+    async function fetchStatus(fresh = false) {
+      activeRequestCount++;
+      setSyncing(true, fresh ? 'Reading unit...' : 'Syncing...');
+      try {
+        const res = await fetch(`/api/status${fresh ? '?fresh=true' : ''}`);
+        const data = await res.json();
+        if (data.success && data.state) {
+          updateUI(data.state, data.rssi);
+        } else {
+          showError(data.error || 'Failed to read status');
+        }
+      } catch (err) {
+        showError('Unreachable');
+      } finally {
+        activeRequestCount--;
+        if (activeRequestCount <= 0) setSyncing(false);
+      }
+    }
+
+    function updateUI(state, rssi) {
+      currentState = state;
+      const unit = state.is_celsius ? '°C' : '°F';
+      el('zoneTag').textContent = 'Zone: ' + (state.zone_name || 'Main');
+      el('roomTemp').innerHTML = (state.temperature !== null ? state.temperature : '--') + `<sup>${unit}</sup>`;
+      
+      // If user isn't actively tapping +/- setpoint, sync setpoint display
+      if (pendingTemp === null) {
+        el('targetTemp').textContent = (state.set_point !== null ? state.set_point : '--') + unit;
+        el('targetTemp').classList.remove('pending');
+      }
+
+      el('activeModeLabel').textContent = state.current_mode || '--';
+      el('macVal').textContent = state.mac_address || '--';
+      el('idVal').textContent = state.unit_id || '--';
+      if (rssi) el('rssiVal').textContent = `${rssi} dBm`;
+      el('lastUpdatedVal').textContent = new Date().toLocaleTimeString();
+
+      renderModes(state.available_modes, state.current_mode);
+    }
+
+    function renderModes(modes, activeMode) {
+      const grid = el('modeGrid');
+      if (!modes || modes.length === 0) return;
+      grid.innerHTML = '';
+      modes.forEach(mode => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-mode' + (mode === activeMode ? ' active' : '') + (mode === 'OFF' ? ' off' : '');
+        btn.textContent = mode;
+        btn.onclick = () => selectModeOptimistic(mode);
+        grid.appendChild(btn);
+      });
+    }
+
+    // 0ms Optimistic UI update on mode click
+    async function selectModeOptimistic(newMode) {
+      const prevMode = currentState ? currentState.current_mode : null;
+      if (newMode === prevMode) return;
+
+      // 1. Instant visual feedback (0ms)
+      document.querySelectorAll('.btn-mode').forEach(b => {
+        b.classList.remove('active', 'off');
+        if (b.textContent === newMode) {
+          b.classList.add('active');
+          if (newMode === 'OFF') b.classList.add('off');
+        }
+      });
+      el('activeModeLabel').textContent = newMode;
+      activeRequestCount++;
+      setSyncing(true, 'Setting ' + newMode + '...');
+
+      // 2. Transmit to backend
+      try {
+        const res = await fetch('/api/set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: newMode })
+        });
+        const data = await res.json();
+        if (data.success && data.state) {
+          updateUI(data.state);
+        } else {
+          // Revert on error
+          alert('Mode change failed: ' + (data.error || 'Unknown error'));
+          if (prevMode) renderModes(currentState.available_modes, prevMode);
+        }
+      } catch (err) {
+        alert('Network error while setting mode: ' + err.message);
+        if (prevMode) renderModes(currentState.available_modes, prevMode);
+      } finally {
+        activeRequestCount--;
+        if (activeRequestCount <= 0) setSyncing(false);
+      }
+    }
+
+    // Instant setpoint adjustment with 400ms debounce
+    function adjustTemp(delta) {
+      const cur = pendingTemp !== null ? pendingTemp : (currentState && currentState.set_point ? currentState.set_point : 72);
+      const isC = currentState ? currentState.is_celsius : false;
+      const min = isC ? 1 : 33;
+      const max = isC ? 37 : 99;
+      const next = Math.max(min, Math.min(max, cur + delta));
+
+      // 0ms instant display update
+      pendingTemp = next;
+      el('targetTemp').textContent = next + (isC ? '°C' : '°F');
+      el('targetTemp').classList.add('pending');
+
+      // Debounce network dispatch by 400ms
+      clearTimeout(tempDebounceTimer);
+      tempDebounceTimer = setTimeout(async () => {
+        const valToSend = pendingTemp;
+        activeRequestCount++;
+        setSyncing(true, 'Setting ' + valToSend + '°...');
+        try {
+          const res = await fetch('/api/set', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ temp: valToSend })
+          });
+          const data = await res.json();
+          if (data.success && data.state) {
+            pendingTemp = null;
+            updateUI(data.state);
+          } else {
+            alert('Failed to set temperature: ' + (data.error || 'Unknown error'));
+          }
+        } catch (err) {
+          alert('Network error: ' + err.message);
+        } finally {
+          activeRequestCount--;
+          if (activeRequestCount <= 0) setSyncing(false);
+        }
+      }, 400);
+    }
+
+    // Event Listeners
+    el('btnTempDown').onclick = () => adjustTemp(-1);
+    el('btnTempUp').onclick = () => adjustTemp(1);
+    el('btnRefresh').onclick = () => fetchStatus(true);
+
+    // Modal & Pairing Logic
+    el('btnOpenPairModal').onclick = () => {
+      if (currentState && currentState.unit_id) {
+        el('pairPinInput').value = currentState.unit_id;
+      }
+      el('pairModal').classList.add('open');
+    };
+    el('btnClosePairModal').onclick = () => el('pairModal').classList.remove('open');
+
+    el('btnStartPairing').onclick = async () => {
+      const pin = el('pairPinInput').value.trim();
+      const progressBox = el('pairProgressBox');
+      el('btnStartPairing').disabled = true;
+      progressBox.innerHTML = '<span class="spinner"></span> Starting pairing listener...';
+
+      try {
+        const res = await fetch('/api/pair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: pin, wait: 60 })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          progressBox.textContent = 'Failed to initiate: ' + data.message;
+          el('btnStartPairing').disabled = false;
+          return;
+        }
+
+        const pollTimer = setInterval(async () => {
+          try {
+            const pRes = await fetch('/api/pair/status');
+            const pData = await pRes.json();
+            progressBox.innerHTML = (pData.active ? '<span class="spinner"></span> ' : '') + pData.message;
+
+            if (!pData.active) {
+              clearInterval(pollTimer);
+              el('btnStartPairing').disabled = false;
+              if (pData.status === 'paired') {
+                setTimeout(() => {
+                  el('pairModal').classList.remove('open');
+                  fetchStatus(true);
+                }, 1500);
+              }
+            }
+          } catch (e) {
+            clearInterval(pollTimer);
+            el('btnStartPairing').disabled = false;
+          }
+        }, 1200);
+
+      } catch (err) {
+        progressBox.textContent = 'Error: ' + err.message;
+        el('btnStartPairing').disabled = false;
+      }
+    };
+
+    // Initial load & non-blocking background refresh every 15s
+    fetchStatus();
+    setInterval(() => fetchStatus(false), 15000);
+  </script>
+</body>
+</html>

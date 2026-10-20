@@ -8,6 +8,11 @@ __pycache__/
 *.json
 !example_*.json
 
+# Rust build artifacts
+target/
+rust/target/
+breezy-mach
+
 # Decompiled binary artifacts & disassembly references
 apk/
 extracted/

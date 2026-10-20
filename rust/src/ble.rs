@@ -146,7 +146,7 @@ impl ThermostatManager {
         info!("Applying settings to {mac}: temp={temp:?}, mode={mode:?}, zone={zone:?}");
 
         self.write_device_gatt(&mac, temp, mode, zone).await?;
-        tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
         let state = self.read_device_gatt(&mac).await?;
         *self.cached_state.lock().await = Some(state.clone());
@@ -230,19 +230,24 @@ impl ThermostatManager {
                 for ch in chars {
                     let uuid = ch.uuid().await.map_err(|e| e.to_string())?;
 
+                    let write_req = bluer::gatt::remote::CharacteristicWriteRequest {
+                        op_type: bluer::gatt::WriteOp::Request,
+                        ..Default::default()
+                    };
+
                     if let Some(z) = zone {
                         if uuid == ZONE_ID_CHAR_UUID {
                             let raw = encode_zone_name(z);
-                            ch.write(&raw).await.map_err(|e| e.to_string())?;
-                            tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+                            ch.write_ext(&raw, &write_req).await.map_err(|e| e.to_string())?;
+                            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
                         }
                     }
 
                     if let Some(m) = mode {
                         if uuid == MODE_OPERATION_CHAR_UUID {
                             let raw = encode_current_mode(m)?;
-                            ch.write(&raw).await.map_err(|e| e.to_string())?;
-                            tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+                            ch.write_ext(&raw, &write_req).await.map_err(|e| e.to_string())?;
+                            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
                         }
                     }
 
@@ -250,8 +255,8 @@ impl ThermostatManager {
                         if uuid == SET_POINT_CHAR_UUID {
                             let is_c = self.cached_state.lock().await.as_ref().map(|s| s.is_celsius).unwrap_or(false);
                             let raw = encode_set_point(t, is_c);
-                            ch.write(&raw).await.map_err(|e| e.to_string())?;
-                            tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+                            ch.write_ext(&raw, &write_req).await.map_err(|e| e.to_string())?;
+                            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
                         }
                     }
                 }

@@ -80,9 +80,9 @@ cargo build --release
 
 ### Rust CLI Commands
 ```bash
-# Get instant status (human-readable or JSON)
+# Get instant status (cached 5m idle state, or --fresh for live BLE GATT read)
 ./breezy-mach status
-./breezy-mach status --json
+./breezy-mach status --fresh --json
 
 # Set temperature and mode
 ./breezy-mach set --temp 72 --mode "COOL AUTO LOW"
@@ -94,8 +94,8 @@ cargo build --release
 # Pair a new thermostat with flashing PIN
 ./breezy-mach pair --pin 123456
 
-# Continuous real-time monitor
-./breezy-mach monitor --interval 5
+# Continuous real-time monitor (default 60s interval)
+./breezy-mach monitor --interval 60
 ```
 
 ---
@@ -145,8 +145,8 @@ BreezyMach includes a standalone command-line tool for terminal automation and s
 # Turn thermostat off
 ./coleman_mach_cli.py set --mode OFF
 
-# Continuous live monitoring (poll every 5 seconds)
-./coleman_mach_cli.py monitor --interval 5
+# Continuous live monitoring (poll every 60 seconds)
+./coleman_mach_cli.py monitor --interval 60
 ```
 
 ---
@@ -157,11 +157,11 @@ BreezyMach integrates seamlessly with Home Assistant via two methods:
 
 ### Option 1: Native MQTT Auto-Discovery (Recommended — Zero HA YAML Required)
 
-When started with `--mqtt-host`, BreezyMach connects to your MQTT broker (e.g. Mosquitto on Home Assistant / OpenMediaVault) and automatically publishes Home Assistant MQTT Discovery topics:
+When started with `--mqtt-host`, BreezyMach connects to your MQTT broker (e.g. Mosquitto on Home Assistant) and automatically publishes Home Assistant MQTT Discovery topics:
 
 ```bash
 # Start BreezyMach with MQTT discovery enabled
-./breezy-mach serve --port 8050 --mqtt-host 192.168.99.4
+./breezy-mach serve --port 8050 --mqtt-host 192.168.1.100
 ```
 
 #### What Home Assistant Discovers Automatically:
@@ -171,15 +171,15 @@ When started with `--mqtt-host`, BreezyMach connects to your MQTT broker (e.g. M
 
 ---
 
-### Option 3: Direct Home Assistant REST Template
+### Option 2: Direct Home Assistant REST Template
 
-If you do not use MQTT, you can connect Home Assistant directly to BreezyMach's REST API (`http://192.168.99.10:8050`) by adding the following to your Home Assistant `configuration.yaml`:
+If you do not use MQTT, you can connect Home Assistant directly to BreezyMach's REST API (`http://192.168.1.50:8050`) by adding the following to your Home Assistant `configuration.yaml`:
 
 ```yaml
 # In Home Assistant configuration.yaml:
 rest_command:
   rv_thermostat_set:
-    url: "http://192.168.99.10:8050/api/set"
+    url: "http://192.168.1.50:8050/api/set"
     method: POST
     headers:
       content-type: "application/json"
@@ -188,7 +188,7 @@ rest_command:
 sensor:
   - platform: rest
     name: "RV Thermostat Status"
-    resource: "http://192.168.99.10:8050/api/status"
+    resource: "http://192.168.1.50:8050/api/status"
     json_attributes_path: "$.state"
     json_attributes:
       - temperature
@@ -196,7 +196,7 @@ sensor:
       - current_mode
       - zone_name
     value_template: "{{ value_json.state.current_mode }}"
-    scan_interval: 15
+    scan_interval: 300
 
 climate:
   - platform: template
@@ -229,12 +229,31 @@ climate:
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/status` | Read current status (`?fresh=true` forces fresh BLE read) |
+| `GET` | `/api/status` | Read current status (returns 300s cached idle state; `?fresh=true` forces live BLE GATT read) |
 | `POST` | `/api/set` | Set target setpoint, mode, or zone (e.g. `{"temp": 72, "mode": "COOL AUTO LOW"}`) |
 | `GET` | `/api/scan` | Scan for nearby Coleman-Mach BLE units |
 | `POST` | `/api/pair` | Initiate background pairing sequence (`{"pin": "123456", "wait": 60}`) |
 | `GET` | `/api/pair/status` | Get active pairing progress |
 | `GET` | `/api/config` | Read saved configuration |
+
+---
+
+## 🧠 Engineering & Hardware Lessons Learned
+
+1. **Preventing BLE Radio Hammering & `0xFF` (`--`) Room Temperature Desync**:
+   - **Symptom**: After several days of continuous 15-second BLE connect/read/disconnect polling (~5,760 cycles/day), the thermostat continues to accept setpoint and mode writes normally, but GATT characteristic `382b4008-084a-4158-b378-66674091b1e2` (`ROOM_TEMPERATURE_CHAR_UUID`) begins returning raw bytes `[0xFF, 0x00]` (`[255, 0]`), which decodes to `null` (`--` in the UI).
+   - **Root Cause**: The Coleman-Mach Bluetooth wall thermostat uses a dual-MCU architecture—a main HVAC/LCD microcontroller (reading the NTC thermistor) connected via internal serial link to a Microchip (`00:A0:50` OUI) BLE module that caches the 7 GATT characteristics. Hammering the BLE module with back-to-back GATT connections every 15 seconds eventually wedges the internal MCU-to-BLE temperature register update at its uninitialized sentinel (`0xFF`), and the thermostat firmware itself drops idle BLE connections after ~10 seconds.
+   - **Software Mitigation**: BreezyMach uses a **5-minute (`300s`) idle state cache TTL** across the REST API, Web UI, and MQTT publisher, and explicitly disconnects after each GATT transaction (`device.disconnect().await`). This reduces BLE connection cycles by **20×** (from 5,760/day to 288/day) while allowing instant on-demand live reads via the Web UI **🔄 Refresh Now** button (`/api/status?fresh=true`) or CLI `breezy-mach status --fresh`.
+   - **Hardware Recovery**: If the wall unit's BLE module is already stuck reporting `0xFF 0x00` (`--`), briefly pop the thermostat faceplate off its 12V wall base (or cycle the 12V thermostat fuse) for 10 seconds to cold-boot both the main MCU and the BLE daughterboard.
+
+2. **GATT Write With Response (`WriteOp::Request` / `0x12`) Requirement**:
+   - Although the thermostat's writable characteristics advertise both `write` and `write-without-response` properties, the Coleman-Mach firmware silently ignores GATT `Write Command` (`0x52`, BlueZ's default for `ch.write()`). All setpoint, mode, and zone writes must explicitly specify `WriteOp::Request` (`0x12` ATT Write Request With Response) via `ch.write_ext(&raw, &write_req)`.
+
+3. **Non-Blocking MQTT `ConnAck` Reconnection**:
+   - In `rumqttc`, calling `client.publish().await` inside the `eventloop.poll().await` loop while handling `Event::Incoming(Packet::ConnAck(_))` can deadlock if the bounded `AsyncClient` channel fills before `eventloop.poll()` resumes. `on_connected()` must always be spawned in a separate async task (`tokio::spawn`) so the MQTT event loop continues draining outbound discovery and status packets across broker restarts.
+
+4. **Partial GATT Read Resilience**:
+   - If a single BLE characteristic read times out during a GATT poll, blindly replacing fields with empty defaults can wipe cached metadata (`zone_name`, `unit_id`) in `~/.config/coleman_mach_ble.json`. BreezyMach merges partial reads against the last known state and preserves non-empty saved configuration values.
 
 ---
 

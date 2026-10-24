@@ -76,17 +76,20 @@ impl ThermostatManager {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
+        let existing = Self::load_config().unwrap_or_default();
         let now = chrono_now_iso();
         let cfg = Config {
-            mac_address: mac.to_string(),
-            zone_name: zone.to_string(),
-            unit_id: unit_id.to_string(),
+            mac_address: if mac.is_empty() { existing.mac_address } else { mac.to_string() },
+            zone_name: if zone.is_empty() { existing.zone_name } else { zone.to_string() },
+            unit_id: if unit_id.is_empty() { existing.unit_id } else { unit_id.to_string() },
             updated_at: now,
         };
         if let Ok(data) = serde_json::to_string_pretty(&cfg) {
             let _ = std::fs::write(path, data);
         }
     }
+
+    pub const DEFAULT_CACHE_TTL_SECS: u64 = 300;
 
     pub async fn get_config(&self) -> Config {
         Self::load_config().unwrap_or_default()
@@ -119,12 +122,22 @@ impl ThermostatManager {
         {
             let cached = self.cached_state.lock().await;
             let time = *self.cached_state_time.lock().await;
-            if !force_refresh && cached.is_some() && (now - time) < 10 {
+            if !force_refresh && cached.is_some() && (now.saturating_sub(time)) < Self::DEFAULT_CACHE_TTL_SECS {
                 return Ok(cached.clone().unwrap());
             }
         }
 
         let _lock = self.gatt_lock.lock().await;
+        // Re-check cache after acquiring GATT lock so concurrent callers share a single BLE read
+        let now = current_time_secs();
+        {
+            let cached = self.cached_state.lock().await;
+            let time = *self.cached_state_time.lock().await;
+            if !force_refresh && cached.is_some() && (now.saturating_sub(time)) < Self::DEFAULT_CACHE_TTL_SECS {
+                return Ok(cached.clone().unwrap());
+            }
+        }
+
         let mac = self.get_target_mac().await?;
         let state = self.read_device_gatt(&mac).await?;
         
@@ -175,11 +188,29 @@ impl ThermostatManager {
         let session = Session::new().await.map_err(|e| e.to_string())?;
         let (_adapter, device) = self.connect_device(&session, mac).await?;
 
+        let prev_cached = self.cached_state.lock().await.clone();
+        let saved_cfg = Self::load_config().unwrap_or_default();
+
         let mut state = ThermostatState {
             mac_address: mac.to_string(),
             ble_name: device.name().await.ok().flatten(),
+            zone_name: prev_cached
+                .as_ref()
+                .map(|s| s.zone_name.clone())
+                .filter(|z| !z.is_empty())
+                .unwrap_or(saved_cfg.zone_name),
+            unit_id: prev_cached
+                .as_ref()
+                .map(|s| s.unit_id.clone())
+                .filter(|u| !u.is_empty())
+                .unwrap_or(saved_cfg.unit_id),
+            is_celsius: prev_cached.as_ref().map(|s| s.is_celsius).unwrap_or(false),
+            temperature: None,
+            set_point: prev_cached.as_ref().and_then(|s| s.set_point),
+            current_mode: prev_cached.as_ref().map(|s| s.current_mode.clone()).unwrap_or_default(),
+            available_modes: prev_cached.as_ref().map(|s| s.available_modes.clone()).unwrap_or_default(),
+            available_modes_raw_hex: prev_cached.as_ref().map(|s| s.available_modes_raw_hex.clone()).unwrap_or_default(),
             timestamp: current_time_secs(),
-            ..Default::default()
         };
 
         let services = device.services().await.map_err(|e| e.to_string())?;
@@ -188,27 +219,50 @@ impl ThermostatManager {
                 let chars = service.characteristics().await.map_err(|e| e.to_string())?;
                 for ch in chars {
                     let uuid = ch.uuid().await.map_err(|e| e.to_string())?;
-                    let val = ch.read().await.unwrap_or_default();
+                    let Ok(val) = ch.read().await else {
+                        continue;
+                    };
+                    if val.is_empty() {
+                        continue;
+                    }
 
                     if uuid == ROOM_TEMPERATURE_CHAR_UUID {
                         state.temperature = decode_temperature(&val);
                     } else if uuid == SET_POINT_CHAR_UUID {
-                        state.set_point = decode_set_point(&val);
+                        if let Some(sp) = decode_set_point(&val) {
+                            state.set_point = Some(sp);
+                        }
                     } else if uuid == CELSIUS_CHAR_UUID {
                         state.is_celsius = decode_celsius(&val);
                     } else if uuid == ZONE_ID_CHAR_UUID {
-                        state.zone_name = decode_zone_name(&val);
+                        let z = decode_zone_name(&val);
+                        if !z.is_empty() {
+                            state.zone_name = z;
+                        }
                     } else if uuid == MODE_OPERATION_CHAR_UUID {
-                        state.current_mode = decode_current_mode(&val);
+                        let m = decode_current_mode(&val);
+                        if !m.is_empty() {
+                            state.current_mode = m;
+                        }
                     } else if uuid == AVAILABLE_MODE_CHAR_UUID {
-                        state.available_modes = decode_available_modes(&val);
-                        state.available_modes_raw_hex = hex_string(&val);
+                        let modes = decode_available_modes(&val);
+                        if !modes.is_empty() {
+                            state.available_modes = modes;
+                            state.available_modes_raw_hex = hex_string(&val);
+                        }
                     } else if uuid == UNIT_ID_CHAR_UUID {
-                        state.unit_id = decode_unit_id(&val);
+                        let uid = decode_unit_id(&val);
+                        if !uid.is_empty() {
+                            state.unit_id = uid;
+                        }
                     }
                 }
             }
         }
+
+        // Disconnect cleanly after completing GATT transaction so the thermostat's
+        // Microchip BLE module does not hold an idle connection open.
+        let _ = device.disconnect().await;
 
         Ok(state)
     }

@@ -58,7 +58,10 @@ impl MqttService {
                     }
                     Ok(Event::Incoming(Packet::ConnAck(_))) => {
                         info!("MQTT connected to broker!");
-                        let _ = s_loop.on_connected().await;
+                        let s_conn = s_loop.clone();
+                        tokio::spawn(async move {
+                            let _ = s_conn.on_connected().await;
+                        });
                     }
                     Ok(_) => {}
                     Err(e) => {
@@ -69,13 +72,13 @@ impl MqttService {
             }
         });
 
-        // Spawn periodic status publisher
+        // Spawn periodic status publisher (gentle 5-minute idle interval to avoid BLE radio wear)
         let s_pub = service.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(2)).await;
             loop {
                 s_pub.publish_status().await;
-                tokio::time::sleep(Duration::from_secs(15)).await;
+                tokio::time::sleep(Duration::from_secs(300)).await;
             }
         });
 
@@ -108,7 +111,7 @@ impl MqttService {
             .manager
             .get_target_mac()
             .await
-            .unwrap_or_else(|_| "00A050D228D1".to_string())
+            .unwrap_or_else(|_| "00A050000000".to_string())
             .replace(":", "");
 
         let dev_id = format!("breezy_mach_{}", mac.to_lowercase());

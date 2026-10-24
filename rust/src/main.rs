@@ -33,7 +33,7 @@ enum Commands {
         #[arg(long, default_value_t = 8050, help = "HTTP port to bind")]
         port: u16,
 
-        #[arg(long, help = "MQTT broker hostname or IP for Home Assistant (e.g. 192.168.99.4)")]
+        #[arg(long, help = "MQTT broker hostname or IP for Home Assistant (e.g. 192.168.1.100)")]
         mqtt_host: Option<String>,
 
         #[arg(long, default_value_t = 1883, help = "MQTT broker port")]
@@ -81,7 +81,7 @@ enum Commands {
 
     #[command(about = "Continuously poll and display thermostat status in real time")]
     Monitor {
-        #[arg(long, default_value_t = 5, help = "Polling interval in seconds")]
+        #[arg(long, default_value_t = 60, help = "Polling interval in seconds (default: 60)")]
         interval: u64,
     },
 }

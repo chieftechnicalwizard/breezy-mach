@@ -105,7 +105,7 @@ class ThermostatService:
                 pass
             self._client = None
 
-    async def get_state(self, force_refresh: bool = False, max_age: float = 10.0) -> cli.ThermostatState:
+    async def get_state(self, force_refresh: bool = False, max_age: float = 300.0) -> cli.ThermostatState:
         now = time.time()
         if not force_refresh and self.cached_state and (now - self.cached_state_time) < max_age:
             return self.cached_state
@@ -269,12 +269,12 @@ class ThermostatService:
         return True, "Pairing sequence started."
 
     async def start_background_monitor(self):
-        """Periodically polls status over persistent connection every 20s without blocking."""
+        """Periodically polls status over persistent connection every 300s without blocking."""
         while self._running:
             try:
-                await asyncio.sleep(20)
+                await asyncio.sleep(300)
                 if not self.pairing_active and not self.lock.locked():
-                    await self.get_state(force_refresh=True, max_age=5.0)
+                    await self.get_state(force_refresh=True, max_age=300.0)
             except Exception as exc:
                 logger.debug(f"Background poll tick note: {exc}")
 
@@ -464,7 +464,7 @@ HTML_DASHBOARD = """<!DOCTYPE html>
         <ol>
           <li>Stand near the Coleman-Mach physical thermostat.</li>
           <li>Press & hold <strong>BOTH the UP and DOWN</strong> buttons for <strong>5 seconds</strong>.</li>
-          <li>The thermostat screen will flash its 6-digit Unit ID (e.g. <code>96 89 00</code>).</li>
+          <li>The thermostat screen will flash its 6-digit Unit ID (e.g. <code>12 34 56</code>).</li>
           <li>Enter the 6-digit PIN below and click <strong>Start Pairing</strong>.</li>
         </ol>
       </div>
@@ -710,9 +710,12 @@ HTML_DASHBOARD = """<!DOCTYPE html>
       }
     };
 
-    // Initial load & non-blocking background refresh every 15s
+    // Initial load & gentle idle background refresh every 5 minutes (300s).
+    // Users can click "Refresh Now" at any time for an immediate live BLE read.
     fetchStatus();
-    setInterval(() => fetchStatus(false), 15000);
+    setInterval(() => {
+      if (!document.hidden) fetchStatus(false);
+    }, 300000);
   </script>
 </body>
 </html>

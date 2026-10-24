@@ -179,7 +179,7 @@
         <ol>
           <li>Stand near the Coleman-Mach physical thermostat.</li>
           <li>Press & hold <strong>BOTH the UP and DOWN</strong> buttons for <strong>5 seconds</strong>.</li>
-          <li>The thermostat screen will flash its 6-digit Unit ID (e.g. <code>96 89 00</code>).</li>
+          <li>The thermostat screen will flash its 6-digit Unit ID (e.g. <code>12 34 56</code>).</li>
           <li>Enter the 6-digit PIN below and click <strong>Start Pairing</strong>.</li>
         </ol>
       </div>
@@ -425,9 +425,12 @@
       }
     };
 
-    // Initial load & non-blocking background refresh every 15s
+    // Initial load & gentle idle background refresh every 5 minutes (300s).
+    // Users can click "Refresh Now" at any time for an immediate live BLE read.
     fetchStatus();
-    setInterval(() => fetchStatus(false), 15000);
+    setInterval(() => {
+      if (!document.hidden) fetchStatus(false);
+    }, 300000);
   </script>
 </body>
 </html>

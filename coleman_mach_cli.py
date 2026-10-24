@@ -861,7 +861,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_set.add_argument("--zone", help="Zone name (up to 7 ASCII characters, e.g. FRONT, CENTER, BACK)")
 
     p_mon = sub.add_parser("monitor", help="Continuously poll and display thermostat status")
-    p_mon.add_argument("--interval", type=float, default=5.0, help="Polling interval in seconds (default: 5.0)")
+    p_mon.add_argument("--interval", type=float, default=60.0, help="Polling interval in seconds (default: 60.0)")
 
     sub.add_parser("selftest", help="Run protocol codec unit tests against reverse-engineered APK semantics")
     return parser

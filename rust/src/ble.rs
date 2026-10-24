@@ -178,7 +178,13 @@ impl ThermostatManager {
 
         if !device.is_connected().await.unwrap_or(false) {
             info!("Connecting to BLE device {mac}...");
-            device.connect().await.map_err(|e| format!("Connection error: {e}"))?;
+            if let Err(first_err) = device.connect().await {
+                info!("Initial connect to {mac} returned ({first_err}); running brief BLE discovery to refresh BlueZ cache...");
+                let _disc = adapter.discover_devices().await.ok();
+                tokio::time::sleep(tokio::time::Duration::from_millis(1800)).await;
+                drop(_disc);
+                device.connect().await.map_err(|e| format!("Connection error: {e}"))?;
+            }
         }
 
         Ok((adapter, device))

@@ -257,6 +257,14 @@ climate:
 
 ---
 
+## 💖 Sponsors & Donations
+
+Sponsorship and donations support Shekinah Shine maintenance, sanctuary groundskeeping, hardware R&D, and open-source development.
+
+[PayPal Donate (Shekinah Shine)](https://www.paypal.com/donate/?business=DQWR2UNVNWPQU&no_recurring=0&item_name=SHEKINAH+SHINE+MAINTENANCE%2C+GARDEN%2C+AND+GROUNDSKEEPING&currency_code=USD) · [Cash App (`$chieftechnicalwizard`)](https://cash.app/$chieftechnicalwizard) · [Venmo (`@Christopher-CTW`)](https://venmo.com/u/Christopher-CTW) · [GitHub Sponsors](https://github.com/sponsors/chieftechnicalwizard) · [Shekinah Shine Website](https://www.shekinahshine.org/)
+
+---
+
 ## 📄 License
 
 MIT License. Created by [ChiefTechnicalWizard](https://github.com/chieftechnicalwizard).

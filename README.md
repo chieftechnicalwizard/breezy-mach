@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux%20%28BlueZ%29-orange.svg)](#)
 [![BLE GATT](https://img.shields.io/badge/Bluetooth-BLE%20GATT-informational.svg)](#)
+<a href="https://www.shekinahshine.org/?donate=paypal"><img src="docs/badges/paypal-donate-pill.svg" alt="Donate via PayPal" height="20" /></a>
 
 BreezyMach is a lightweight, local-only Linux tool and web dashboard for monitoring and controlling **Coleman-Mach / Airxcel Bluetooth RV Thermostats**. It runs 100% offline inside your RV without any cloud accounts, proprietary gateways, or internet access. Available both as a high-performance **native Rust single binary** and as a **Python service**.
 
@@ -257,11 +258,18 @@ climate:
 
 ---
 
-## 💖 Sponsors & Donations
+## Sponsors & Donations
 
-Sponsorship and donations support Shekinah Shine maintenance, sanctuary groundskeeping, hardware R&D, and open-source development.
+Sponsorship and donations support Shekinah Shine maintenance, sanctuary groundskeeping, AI broadcast infrastructure, and open-source development.
 
-[PayPal Donate (Shekinah Shine)](https://www.paypal.com/donate/?business=DQWR2UNVNWPQU&no_recurring=0&item_name=SHEKINAH+SHINE+MAINTENANCE%2C+GARDEN%2C+AND+GROUNDSKEEPING&currency_code=USD) · [Cash App (`$chieftechnicalwizard`)](https://cash.app/$chieftechnicalwizard) · [Venmo (`@Christopher-CTW`)](https://venmo.com/u/Christopher-CTW) · [GitHub Sponsors](https://github.com/sponsors/chieftechnicalwizard) · [Shekinah Shine Website](https://www.shekinahshine.org/)
+<p>
+  <a href="https://www.shekinahshine.org/?donate=paypal"><img src="docs/badges/paypal-donate-pill.svg" alt="Donate via PayPal" height="24" align="absmiddle" /></a> &nbsp;·&nbsp;
+  <a href="https://www.shekinahshine.org/?donate=paypal"><img src="docs/badges/icon-paypal.svg" width="16" height="16" align="absmiddle" alt="" /> PayPal Donate (Shekinah Shine)</a> &nbsp;·&nbsp;
+  <a href="https://www.shekinahshine.org/?donate=cashapp"><img src="docs/badges/icon-cashapp.svg" width="16" height="16" align="absmiddle" alt="" /> Cash App</a> &nbsp;·&nbsp;
+  <a href="https://www.shekinahshine.org/?donate=venmo"><img src="docs/badges/icon-venmo.svg" width="16" height="16" align="absmiddle" alt="" /> Venmo</a> &nbsp;·&nbsp;
+  <a href="https://github.com/sponsors/chieftechnicalwizard"><img src="docs/badges/icon-github-sponsors.svg" width="16" height="16" align="absmiddle" alt="" /> GitHub Sponsors</a> &nbsp;·&nbsp;
+  <a href="https://www.shekinahshine.org/"><img src="docs/badges/icon-shekinah.svg" width="16" height="16" align="absmiddle" alt="" /> Shekinah Shine Website</a>
+</p>
 
 ---
 
